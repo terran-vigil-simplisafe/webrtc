@@ -562,9 +562,9 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 
 			// ACT extension needs both Recvonly and Sendonly directions
 			// - needed because RTPSender.GetParameters() calls getRTPParametersByKind with Sendonly
-			// if extension == "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time" {
-			// 	h.allowedDirections = []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly}
-			// }
+			if extension == "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time" {
+				h.allowedDirections = []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly}
+			}
 
 			switch {
 			case localExtension.isAudio && typ == RTPCodecTypeAudio:
@@ -582,17 +582,17 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 	// AUTO-REGISTER: Extension not in headerExtensions, register it dynamically
 	// This allows ACT and other extensions from remote SDP to be negotiated
 	// even if they weren't pre-registered in the MediaEngine
-	h := mediaEngineHeaderExtension{
-		uri:               extension,
-		allowedDirections: []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly},
-	}
-	switch typ {
-	case RTPCodecTypeAudio:
-		h.isAudio = true
-	case RTPCodecTypeVideo:
-		h.isVideo = true
-	}
-	m.negotiatedHeaderExtensions[id] = h
+	// h := mediaEngineHeaderExtension{
+	// 	uri:               extension,
+	// 	allowedDirections: []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly},
+	// }
+	// switch typ {
+	// case RTPCodecTypeAudio:
+	// 	h.isAudio = true
+	// case RTPCodecTypeVideo:
+	// 	h.isVideo = true
+	// }
+	// m.negotiatedHeaderExtensions[id] = h
 
 	return nil
 }
