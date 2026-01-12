@@ -563,7 +563,7 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 			// ACT extension needs both Recvonly and Sendonly directions
 			// - needed because RTPSender.GetParameters() calls getRTPParametersByKind with Sendonly
 			if extension == "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time" {
-				h.allowedDirections = []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly}
+				// h.allowedDirections = []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly}
 			}
 
 			switch {
