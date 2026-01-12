@@ -634,16 +634,16 @@ func (m *MediaEngine) updateFromRemoteDescription(desc sdp.SessionDescription) e
 			m.negotiatedAudio = true
 			// CRITICAL FIX: Also update header extensions for the FIRST audio section
 			// This ensures extensions from the remote offer (like ACT) are negotiated
-			if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
-				return err
-			}
+			// if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
+			// 	return err
+			// }
 		case !m.negotiatedVideo && typ == RTPCodecTypeVideo:
 			m.negotiatedVideo = true
 			// CRITICAL FIX: Also update header extensions for the FIRST video section
 			// This ensures extensions from the remote offer (like ACT) are negotiated
-			if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
-				return err
-			}
+			// if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
+			// 	return err
+			// }
 		default:
 			// update header extesions from remote sdp if codec is negotiated, Firefox
 			// would send updated header extension in renegotiation.
@@ -772,8 +772,8 @@ func (m *MediaEngine) getRTPParametersByKind(typ RTPCodecType, directions []RTPT
 			if haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions) &&
 				(e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo) {
 				headerExtensions = append(headerExtensions, RTPHeaderExtensionParameter{ID: id, URI: e.uri})
-			} else {
-				fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Skipping extension id=%d (directions match=%v, type match=%v)\n", id, haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions), (e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo))
+			// } else {
+			// 	fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Skipping extension id=%d (directions match=%v, type match=%v)\n", id, haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions), (e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo))
 			}
 		}
 	} else {
