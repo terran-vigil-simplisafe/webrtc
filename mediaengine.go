@@ -533,18 +533,13 @@ func (m *MediaEngine) updateHeaderExtensionFromMediaSection(media *sdp.MediaDesc
 	default:
 		return nil
 	}
-	fmt.Printf("[PION WEBRTC] updateHeaderExtensionFromMediaSection: Processing %s media section\n", strings.ToLower(media.MediaName.Media))
 	extensions, err := rtpExtensionsFromMediaDescription(media)
 	if err != nil {
-		fmt.Printf("[PION WEBRTC] ERROR in rtpExtensionsFromMediaDescription: %v\n", err)
 		return err
 	}
-	fmt.Printf("[PION WEBRTC] updateHeaderExtensionFromMediaSection: Found %d extensions in %s section\n", len(extensions), strings.ToLower(media.MediaName.Media))
 
 	for extension, id := range extensions {
-		fmt.Printf("[PION WEBRTC] updateHeaderExtensionFromMediaSection: Calling updateHeaderExtension for '%s' (id=%d, typ=%v)\n", extension, id, typ)
 		if err = m.updateHeaderExtension(id, extension, typ); err != nil {
-			fmt.Printf("[PION WEBRTC] ERROR in updateHeaderExtension for '%s': %v\n", extension, err)
 			return err
 		}
 	}
@@ -560,17 +555,15 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 
 	for _, localExtension := range m.headerExtensions {
 		if localExtension.uri == extension {
-			fmt.Printf("[PION WEBRTC] updateHeaderExtension: Extension '%s' (id=%d) found in headerExtensions, registering\n", extension, id)
 			h := mediaEngineHeaderExtension{uri: extension, allowedDirections: localExtension.allowedDirections}
 			if existingValue, ok := m.negotiatedHeaderExtensions[id]; ok {
 				h = existingValue
 			}
 
-			// CRITICAL FIX: Ensure ACT extension has both Recvonly and Sendonly directions
-			// This is needed because RTPSender.GetParameters() calls getRTPParametersByKind with Sendonly
+			// ACT extension needs both Recvonly and Sendonly directions
+			// - needed because RTPSender.GetParameters() calls getRTPParametersByKind with Sendonly
 			if extension == "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time" {
 				h.allowedDirections = []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly}
-				fmt.Printf("[PION WEBRTC] updateHeaderExtension: Set ACT directions to include Sendonly\n")
 			}
 
 			switch {
@@ -581,7 +574,7 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 			}
 
 			m.negotiatedHeaderExtensions[id] = h
-			fmt.Printf("[PION WEBRTC] updateHeaderExtension: Successfully registered '%s' (id=%d, isAudio=%v, isVideo=%v, directions=%v) in negotiatedHeaderExtensions\n", extension, id, h.isAudio, h.isVideo, h.allowedDirections)
+			// TCV why was this added?
 			return nil
 		}
 	}
@@ -589,18 +582,17 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 	// AUTO-REGISTER: Extension not in headerExtensions, register it dynamically
 	// This allows ACT and other extensions from remote SDP to be negotiated
 	// even if they weren't pre-registered in the MediaEngine
-	fmt.Printf("[PION WEBRTC] AUTO-REGISTER: Extension '%s' (id=%d, typ=%v) not in headerExtensions, auto-registering\n", extension, id, typ)
 	h := mediaEngineHeaderExtension{
 		uri:               extension,
 		allowedDirections: []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly},
 	}
-	if typ == RTPCodecTypeAudio {
+	switch typ {
+	case RTPCodecTypeAudio:
 		h.isAudio = true
-	} else if typ == RTPCodecTypeVideo {
+	case RTPCodecTypeVideo:
 		h.isVideo = true
 	}
 	m.negotiatedHeaderExtensions[id] = h
-	fmt.Printf("[PION WEBRTC] AUTO-REGISTER: Successfully registered extension '%s' (id=%d, isAudio=%v, isVideo=%v)\n", extension, id, h.isAudio, h.isVideo)
 
 	return nil
 }
@@ -624,7 +616,6 @@ func (m *MediaEngine) pushCodecs(codecs []RTPCodecParameters, typ RTPCodecType) 
 
 // Update the MediaEngine from a remote description.
 func (m *MediaEngine) updateFromRemoteDescription(desc sdp.SessionDescription) error { //nolint:cyclop,gocognit
-	fmt.Printf("[PION WEBRTC] updateFromRemoteDescription CALLED - processing %d media descriptions\n", len(desc.MediaDescriptions))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -643,22 +634,16 @@ func (m *MediaEngine) updateFromRemoteDescription(desc sdp.SessionDescription) e
 			m.negotiatedAudio = true
 			// CRITICAL FIX: Also update header extensions for the FIRST audio section
 			// This ensures extensions from the remote offer (like ACT) are negotiated
-			fmt.Printf("[PION WEBRTC] CRITICAL FIX: Processing FIRST audio section, calling updateHeaderExtensionFromMediaSection\n")
 			if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
-				fmt.Printf("[PION WEBRTC] ERROR in updateHeaderExtensionFromMediaSection for audio: %v\n", err)
 				return err
 			}
-			fmt.Printf("[PION WEBRTC] CRITICAL FIX: Successfully processed FIRST audio section extensions\n")
 		case !m.negotiatedVideo && typ == RTPCodecTypeVideo:
 			m.negotiatedVideo = true
 			// CRITICAL FIX: Also update header extensions for the FIRST video section
 			// This ensures extensions from the remote offer (like ACT) are negotiated
-			fmt.Printf("[PION WEBRTC] CRITICAL FIX: Processing FIRST video section, calling updateHeaderExtensionFromMediaSection\n")
 			if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
-				fmt.Printf("[PION WEBRTC] ERROR in updateHeaderExtensionFromMediaSection for video: %v\n", err)
 				return err
 			}
-			fmt.Printf("[PION WEBRTC] CRITICAL FIX: Successfully processed FIRST video section extensions\n")
 		default:
 			// update header extesions from remote sdp if codec is negotiated, Firefox
 			// would send updated header extension in renegotiation.
@@ -783,12 +768,9 @@ func (m *MediaEngine) getRTPParametersByKind(typ RTPCodecType, directions []RTPT
 
 	//nolint:nestif
 	if (m.negotiatedVideo && typ == RTPCodecTypeVideo) || (m.negotiatedAudio && typ == RTPCodecTypeAudio) {
-		fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Using negotiatedHeaderExtensions (typ=%v, negotiatedAudio=%v, negotiatedVideo=%v, count=%d)\n", typ, m.negotiatedAudio, m.negotiatedVideo, len(m.negotiatedHeaderExtensions))
 		for id, e := range m.negotiatedHeaderExtensions {
-			fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Checking extension id=%d, uri='%s', isAudio=%v, isVideo=%v, directions=%v\n", id, e.uri, e.isAudio, e.isVideo, e.allowedDirections)
 			if haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions) &&
 				(e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo) {
-				fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Adding extension id=%d, uri='%s' to headerExtensions\n", id, e.uri)
 				headerExtensions = append(headerExtensions, RTPHeaderExtensionParameter{ID: id, URI: e.uri})
 			} else {
 				fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Skipping extension id=%d (directions match=%v, type match=%v)\n", id, haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions), (e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo))
@@ -801,7 +783,6 @@ func (m *MediaEngine) getRTPParametersByKind(typ RTPCodecType, directions []RTPT
 		for id, ext := range m.negotiatedHeaderExtensions {
 			if (ext.isAudio && typ == RTPCodecTypeAudio) || (ext.isVideo && typ == RTPCodecTypeVideo) {
 				mediaHeaderExtensions[id] = ext
-				fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Including negotiated extension id=%d, uri='%s' from negotiatedHeaderExtensions (not yet negotiated)\n", id, ext.uri)
 			}
 		}
 		for _, ext := range m.headerExtensions {
