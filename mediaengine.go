@@ -780,11 +780,11 @@ func (m *MediaEngine) getRTPParametersByKind(typ RTPCodecType, directions []RTPT
 		mediaHeaderExtensions := make(map[int]mediaEngineHeaderExtension)
 		// CRITICAL FIX: Also include extensions from negotiatedHeaderExtensions even if not negotiated yet
 		// This ensures ACT and other auto-registered extensions are available
-		for id, ext := range m.negotiatedHeaderExtensions {
-			if (ext.isAudio && typ == RTPCodecTypeAudio) || (ext.isVideo && typ == RTPCodecTypeVideo) {
-				mediaHeaderExtensions[id] = ext
-			}
-		}
+		// for id, ext := range m.negotiatedHeaderExtensions {
+		// 	if (ext.isAudio && typ == RTPCodecTypeAudio) || (ext.isVideo && typ == RTPCodecTypeVideo) {
+		// 		mediaHeaderExtensions[id] = ext
+		// 	}
+		// }
 		for _, ext := range m.headerExtensions {
 			usingNegotiatedID := false
 			for id := range m.negotiatedHeaderExtensions {
