@@ -560,6 +560,12 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 				h = existingValue
 			}
 
+			// ACT extension needs both Recvonly and Sendonly directions
+			// - needed because RTPSender.GetParameters() calls getRTPParametersByKind with Sendonly
+			if extension == "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time" {
+				// h.allowedDirections = []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly}
+			}
+
 			switch {
 			case localExtension.isAudio && typ == RTPCodecTypeAudio:
 				h.isAudio = true
@@ -568,8 +574,25 @@ func (m *MediaEngine) updateHeaderExtension(id int, extension string, typ RTPCod
 			}
 
 			m.negotiatedHeaderExtensions[id] = h
+			// TCV why was this added?
+			return nil
 		}
 	}
+
+	// AUTO-REGISTER: Extension not in headerExtensions, register it dynamically
+	// This allows ACT and other extensions from remote SDP to be negotiated
+	// even if they weren't pre-registered in the MediaEngine
+	// h := mediaEngineHeaderExtension{
+	// 	uri:               extension,
+	// 	allowedDirections: []RTPTransceiverDirection{RTPTransceiverDirectionRecvonly, RTPTransceiverDirectionSendonly},
+	// }
+	// switch typ {
+	// case RTPCodecTypeAudio:
+	// 	h.isAudio = true
+	// case RTPCodecTypeVideo:
+	// 	h.isVideo = true
+	// }
+	// m.negotiatedHeaderExtensions[id] = h
 
 	return nil
 }
@@ -609,8 +632,18 @@ func (m *MediaEngine) updateFromRemoteDescription(desc sdp.SessionDescription) e
 		switch {
 		case !m.negotiatedAudio && typ == RTPCodecTypeAudio:
 			m.negotiatedAudio = true
+			// CRITICAL FIX: Also update header extensions for the FIRST audio section
+			// This ensures extensions from the remote offer (like ACT) are negotiated
+			// if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
+			// 	return err
+			// }
 		case !m.negotiatedVideo && typ == RTPCodecTypeVideo:
 			m.negotiatedVideo = true
+			// CRITICAL FIX: Also update header extensions for the FIRST video section
+			// This ensures extensions from the remote offer (like ACT) are negotiated
+			// if err := m.updateHeaderExtensionFromMediaSection(media); err != nil {
+			// 	return err
+			// }
 		default:
 			// update header extesions from remote sdp if codec is negotiated, Firefox
 			// would send updated header extension in renegotiation.
@@ -739,10 +772,19 @@ func (m *MediaEngine) getRTPParametersByKind(typ RTPCodecType, directions []RTPT
 			if haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions) &&
 				(e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo) {
 				headerExtensions = append(headerExtensions, RTPHeaderExtensionParameter{ID: id, URI: e.uri})
+			// } else {
+			// 	fmt.Printf("[PION WEBRTC] getRTPParametersByKind: Skipping extension id=%d (directions match=%v, type match=%v)\n", id, haveRTPTransceiverDirectionIntersection(e.allowedDirections, directions), (e.isAudio && typ == RTPCodecTypeAudio || e.isVideo && typ == RTPCodecTypeVideo))
 			}
 		}
 	} else {
 		mediaHeaderExtensions := make(map[int]mediaEngineHeaderExtension)
+		// CRITICAL FIX: Also include extensions from negotiatedHeaderExtensions even if not negotiated yet
+		// This ensures ACT and other auto-registered extensions are available
+		// for id, ext := range m.negotiatedHeaderExtensions {
+		// 	if (ext.isAudio && typ == RTPCodecTypeAudio) || (ext.isVideo && typ == RTPCodecTypeVideo) {
+		// 		mediaHeaderExtensions[id] = ext
+		// 	}
+		// }
 		for _, ext := range m.headerExtensions {
 			usingNegotiatedID := false
 			for id := range m.negotiatedHeaderExtensions {
